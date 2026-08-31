@@ -1,0 +1,20 @@
+<project>
+   <modelVersion>4.0.0</modelVersion>
+   <groupId>com.linqiny</groupId>
+    <artifactId>lab2-jenkins-devops</artifactId>
+     <version>1.0.0</version>
+    <packaging>jar</packaging>
+    <properties>
+   <maven.compiler.source>1.8</maven.compiler.source>
+   <maven.compiler.target>1.8</maven.compiler.target>
+    </properties>
+     <dependencies>
+     <dependency>
+     <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.13.2</version>
+      <scope>test</scope>
+     </dependency>
+      </dependencies>
+         </project>
+   
