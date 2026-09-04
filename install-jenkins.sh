@@ -28,16 +28,15 @@ fix_repos_eol() {
 }
 fix_repos_eol
 
-# --- Java 21 (Temurin, via Adoptium) ---
+# --- Java 21 (Temurin, lien fixe) ---
 echo "Installation Java 21 (Temurin)"
-JAVA_URL=$(curl -s "https://api.adoptium.net/v3/assets/latest/21/hotspot?architecture=x64&image_type=jdk&os=linux&vendor=eclipse" | grep -o '"link":"[^"]*"' | head -1 | cut -d'"' -f4)
 cd /tmp
-sudo curl -L -o java21.tar.gz "$JAVA_URL"
+sudo curl -L -o java21.tar.gz "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.4%2B7/OpenJDK21U-jdk_x64_linux_hotspot_21.0.4_7.tar.gz"
 sudo mkdir -p /opt/java21
 sudo tar -xzf java21.tar.gz -C /opt/java21 --strip-components=1
 sudo alternatives --install /usr/bin/java java /opt/java21/bin/java 1
 sudo alternatives --set java /opt/java21/bin/java
-echo "Java 21 installé : $(java -version 2>&1 | head -1)"
+echo "Java installé : $(java -version 2>&1 | head -1)"
 
 # --- Jenkins ---
 echo "Installation Jenkins"
