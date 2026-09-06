@@ -15,6 +15,7 @@ Mettre en place une chaine CI avec Jenkins et Git : installation de Jenkins, cre
 5. Build reussi avec mvn clean package
 6. Publication du code sur GitHub
 7. Test Poll SCM automatique - Mohamed
+8. Let's go
 
 ## Technologies utilisees
 - CentOS7
