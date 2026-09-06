@@ -14,6 +14,7 @@ Mettre en place une chaine CI avec Jenkins et Git : installation de Jenkins, cre
 4. Creation d'un exemple Java simple (App.java + AppTest.java) avec Maven
 5. Build reussi avec mvn clean package
 6. Publication du code sur GitHub
+7. Test Poll SCM automatique - Mohamed
 
 ## Technologies utilisees
 - CentOS7
