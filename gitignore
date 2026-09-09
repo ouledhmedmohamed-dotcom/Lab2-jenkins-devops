@@ -1,0 +1,17 @@
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+*.class
+*.log
+.idea/
+*.iml
+.settings/
+.project
+.classpath
+.vscode/
+.DS_Store
+Thumbs.db
