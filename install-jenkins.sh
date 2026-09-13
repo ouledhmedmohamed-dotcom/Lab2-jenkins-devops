@@ -245,7 +245,7 @@ else
 fi
 
 # Affichage des informations de connexion
-log "=== INSTALLATION TERMINÉE ==="
+log "=== INSTALLATION JENKINS TERMINÉE ==="
 log "🌐 URL: http://$(hostname -I | awk '{print $1}'):${JENKINS_PORT}"
 log "🔑 Mot de passe: $ADMIN_PASS"
 log "📂 Log: $LOG_FILE"
@@ -253,5 +253,139 @@ log "📂 Log: $LOG_FILE"
 # Nettoyage
 sudo yum clean all 2>/dev/null || true
 
-log "✅ Installation réussie"
+log "✅ Installation Jenkins réussie"
+
+
+# ============================================================
+# ==== SECTION ADDITIVE : INSTALLATION DE SONARQUBE        ====
+# ============================================================
+# Cette section est indépendante de la partie Jenkins ci-dessus.
+# Elle installe SonarQube Community Build sur la même VM,
+# avec son propre user système, son propre service systemd,
+# et son propre port (9000 par défaut).
+
+# ==== Variables SonarQube ====
+SONARQUBE_VERSION="${SONARQUBE_VERSION:-26.8.0.126808}"
+SONARQUBE_ZIP_URL="https://binaries.sonarsource.com/Distribution/sonarqube/sonarqube-${SONARQUBE_VERSION}.zip"
+SONARQUBE_HOME="/opt/sonarqube"
+SONARQUBE_PORT="${SONARQUBE_PORT:-9000}"
+SONARQUBE_USER="sonarqube"
+SONARQUBE_TMP_DIR="/tmp/sonarqube-install"
+
+log "=== DÉBUT INSTALLATION SONARQUBE ==="
+
+# ==== SQ Étape 1: Réglages système requis (vm.max_map_count + ulimits) ====
+log "[SQ 1/9] Réglages système (vm.max_map_count, ulimits)"
+
+if ! grep -q "^vm.max_map_count" /etc/sysctl.conf 2>/dev/null; then
+    echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf >/dev/null
+fi
+sudo sysctl -w vm.max_map_count=262144 || log "ATTENTION: échec sysctl vm.max_map_count"
+
+sudo mkdir -p /etc/security/limits.d
+if [ ! -f /etc/security/limits.d/99-sonarqube.conf ]; then
+    sudo tee /etc/security/limits.d/99-sonarqube.conf > /dev/null <<EOF
+${SONARQUBE_USER}   -   nofile   65536
+${SONARQUBE_USER}   -   nproc    4096
+EOF
+fi
+
+# ==== SQ Étape 2: Création du user système sonarqube ====
+log "[SQ 2/9] Création du user système ${SONARQUBE_USER}"
+if ! id "$SONARQUBE_USER" >/dev/null 2>&1; then
+    sudo useradd -r -m -d "$SONARQUBE_HOME" -s /sbin/nologin "$SONARQUBE_USER" \
+        || error_exit "Échec création user ${SONARQUBE_USER}"
+else
+    log "User ${SONARQUBE_USER} déjà existant, création ignorée"
+fi
+
+# ==== SQ Étape 3: Installation d'unzip si nécessaire ====
+log "[SQ 3/9] Vérification de unzip"
+if ! command -v unzip >/dev/null 2>&1; then
+    sudo yum install -y unzip || error_exit "Échec installation unzip"
+fi
+
+# ==== SQ Étape 4: Téléchargement de SonarQube ====
+log "[SQ 4/9] Téléchargement de SonarQube ${SONARQUBE_VERSION}"
+mkdir -p "$SONARQUBE_TMP_DIR"
+cd "$SONARQUBE_TMP_DIR" || error_exit "Impossible d'accéder à ${SONARQUBE_TMP_DIR}"
+
+SONARQUBE_ZIP_FILE="sonarqube-${SONARQUBE_VERSION}.zip"
+if [ -f "$SONARQUBE_HOME/bin/linux-x86-64/sonar.sh" ]; then
+    log "SonarQube déjà installé dans ${SONARQUBE_HOME}, téléchargement ignoré"
+else
+    if [ ! -f "$SONARQUBE_ZIP_FILE" ]; then
+        retry_download "$SONARQUBE_ZIP_URL" "$SONARQUBE_ZIP_FILE" \
+            || error_exit "Échec du téléchargement de SonarQube"
+    fi
+
+    # ==== SQ Étape 5: Extraction et installation ====
+    log "[SQ 5/9] Extraction de SonarQube"
+    unzip -q -o "$SONARQUBE_ZIP_FILE" || error_exit "Échec de l'extraction de SonarQube"
+
+    log "Copie vers ${SONARQUBE_HOME}"
+    sudo cp -a "sonarqube-${SONARQUBE_VERSION}/." "$SONARQUBE_HOME/" \
+        || error_exit "Échec de la copie vers ${SONARQUBE_HOME}"
+    sudo chown -R "${SONARQUBE_USER}:${SONARQUBE_USER}" "$SONARQUBE_HOME"
+
+    rm -f "$SONARQUBE_ZIP_FILE"
+fi
+
+# ==== SQ Étape 6: Service systemd ====
+log "[SQ 6/9] Configuration du service systemd sonarqube"
+sudo tee /etc/systemd/system/sonarqube.service > /dev/null <<EOF
+[Unit]
+Description=SonarQube service
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=${SONARQUBE_HOME}/bin/linux-x86-64/sonar.sh start
+ExecStop=${SONARQUBE_HOME}/bin/linux-x86-64/sonar.sh stop
+User=${SONARQUBE_USER}
+Group=${SONARQUBE_USER}
+Restart=always
+LimitNOFILE=65536
+LimitNPROC=4096
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl daemon-reload
+
+# ==== SQ Étape 7: Firewall port SonarQube ====
+log "[SQ 7/9] Configuration firewall (port ${SONARQUBE_PORT})"
+if ip link show "$IFACE" >/dev/null 2>&1; then
+    sudo firewall-cmd --zone=public --add-port="${SONARQUBE_PORT}/tcp" --permanent || log "Firewall-cmd échoué pour le port SonarQube"
+    sudo firewall-cmd --reload || log "Firewall reload échoué"
+else
+    log "Interface $IFACE non trouvée, configuration firewall SonarQube ignorée"
+fi
+
+# ==== SQ Étape 8: Activation du service ====
+log "[SQ 8/9] Activation et démarrage de SonarQube"
+sudo systemctl enable sonarqube || error_exit "Échec activation SonarQube"
+sudo systemctl start sonarqube || error_exit "Échec démarrage SonarQube"
+
+# ==== SQ Étape 9: Vérification ====
+log "[SQ 9/9] Vérification du déploiement SonarQube"
+log "Premier démarrage : peut prendre 1 à 2 minutes (Elasticsearch embarqué)..."
+
+if wait_for_service "$SONARQUBE_PORT"; then
+    log "✅ SonarQube répond correctement sur le port ${SONARQUBE_PORT}"
+else
+    log "❌ ERREUR: SonarQube ne répond pas sur le port ${SONARQUBE_PORT}"
+    log "Affichage du statut sonarqube:"
+    sudo systemctl status sonarqube --no-pager || true
+    log "Affichage des logs SonarQube (dernières 30 lignes):"
+    sudo tail -n 30 "${SONARQUBE_HOME}/logs/sonar.log" 2>/dev/null || true
+    error_exit "SonarQube non fonctionnel"
+fi
+
+log "=== INSTALLATION SONARQUBE TERMINÉE ==="
+log "🌐 URL: http://$(hostname -I | awk '{print $1}'):${SONARQUBE_PORT}"
+log "🔑 Identifiants par défaut: admin / admin (changement demandé à la 1ère connexion)"
+log "✅ Installation SonarQube réussie"
+
 exit 0
