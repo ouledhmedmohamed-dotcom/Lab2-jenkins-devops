@@ -30,11 +30,13 @@ wait_for_service() {
     local port=$1
     local max_attempts=30
     local attempt=0
-    
+    local http_code
+
     log "Attente du service sur le port $port..."
     while [ $attempt -lt $max_attempts ]; do
-        if curl -sSf -I "http://localhost:${port}" >/dev/null 2>&1; then
-            log "Service disponible sur le port $port"
+        http_code=$(curl -s -o /dev/null -w '%{http_code}' --connect-timeout 3 "http://localhost:${port}" 2>/dev/null || echo "000")
+        if [ "$http_code" != "000" ]; then
+            log "Service disponible sur le port $port (code HTTP: $http_code)"
             return 0
         fi
         attempt=$((attempt + 1))
