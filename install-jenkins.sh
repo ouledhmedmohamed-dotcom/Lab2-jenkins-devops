@@ -249,7 +249,7 @@ fi
 # Affichage des informations de connexion
 log "=== INSTALLATION JENKINS TERMINÉE ==="
 log "🌐 URL: http://$(hostname -I | awk '{print $1}'):${JENKINS_PORT}"
-log "🔑 Mot de passe: $ADMIN_PASS"
+log "🔑 Mot de passe: ${ADMIN_PASS:-non disponible (déjà configuré)}"
 log "📂 Log: $LOG_FILE"
 
 # Nettoyage
