@@ -17,12 +17,12 @@ pipeline {
     }
 
     environment {
-        NEXUS_SERVER_ID = 'nexus'                 // TODO: = <id> du distributionManagement dans pom.xml
-        SONAR_SERVER    = 'SonarQube'             // TODO: nom du serveur (Manage Jenkins > System)
+        NEXUS_SERVER_ID = 'nexus'                 // = <id> du distributionManagement dans pom.xml
+        SONAR_SERVER    = 'sonarqube'             // nom du serveur (Manage Jenkins > System)
         TOMCAT_WEBAPPS  = '/opt/tomcat/webapps'   // TODO: dossier webapps de Tomcat sur VM4
         TOMCAT_URL      = 'http://localhost:8080' // TODO: URL de Tomcat vu depuis VM4
         JMETER_PLAN     = 'tests/jmeter/plan.jmx' // TODO: chemin du plan JMeter dans le repo
-        MAIL_TO         = 'ton.email@exemple.com' // TODO: destinataire des notifications
+        MAIL_TO         = 'ouledhmedmohamed@gmail.com' // destinataire des notifications
     }
 
     stages {
@@ -67,7 +67,7 @@ pipeline {
         stage('Analyse SonarQube') {
             steps {
                 withSonarQubeEnv("${SONAR_SERVER}") {
-                    sh 'mvn -B sonar:sonar'
+                    sh 'mvn -B sonar:sonar -Dsonar.projectKey=Lab2-jenkins-devops -Dsonar.projectName=Lab2-jenkins-devops'
                 }
             }
         }
@@ -158,14 +158,27 @@ EOF
 
     post {
         success {
-            mail to: "${MAIL_TO}",
-                 subject: "SUCCÈS : ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                 body: "Pipeline terminé avec succès sur l'agent admin-agent.\nDétails : ${env.BUILD_URL}"
+            script {
+                // un SMTP non configuré ne doit pas faire échouer le build
+                try {
+                    mail to: "${MAIL_TO}",
+                         subject: "SUCCÈS : ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                         body: "Pipeline terminé avec succès sur l'agent admin-agent.\nDétails : ${env.BUILD_URL}"
+                } catch (err) {
+                    echo "Mail non envoyé (SMTP à configurer) : ${err.message}"
+                }
+            }
         }
         failure {
-            mail to: "${MAIL_TO}",
-                 subject: "ÉCHEC : ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                 body: "Le pipeline a échoué.\nConsole : ${env.BUILD_URL}console"
+            script {
+                try {
+                    mail to: "${MAIL_TO}",
+                         subject: "ÉCHEC : ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                         body: "Le pipeline a échoué.\nConsole : ${env.BUILD_URL}console"
+                } catch (err) {
+                    echo "Mail non envoyé (SMTP à configurer) : ${err.message}"
+                }
+            }
         }
     }
 }
