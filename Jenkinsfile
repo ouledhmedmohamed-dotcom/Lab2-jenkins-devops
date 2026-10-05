@@ -67,7 +67,7 @@ pipeline {
         stage('Analyse SonarQube') {
             steps {
                 withSonarQubeEnv("${SONAR_SERVER}") {
-                    sh 'mvn -B sonar:sonar -Dsonar.projectKey=Lab2-jenkins-devops -Dsonar.projectName=Lab2-jenkins-devops'
+                    sh 'mvn -B org.sonarsource.scanner.maven:sonar-maven-plugin:3.9.1.2184:sonar -Dsonar.projectKey=Lab2-jenkins-devops -Dsonar.projectName=Lab2-jenkins-devops'
                 }
             }
         }
