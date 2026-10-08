@@ -1,7 +1,6 @@
 // ============================================================
 //  Pipeline CI/CD - Lab2 (architecture 4 VM)
 //  Agent : admin-agent (VM4 CentOS : Java 21, Maven, Git, JMeter, Tomcat)
-//  Les valeurs marquées TODO sont à adapter à ton environnement.
 // ============================================================
 pipeline {
     agent { label 'admin-agent' }
@@ -19,9 +18,10 @@ pipeline {
     environment {
         NEXUS_SERVER_ID = 'nexus'                 // = <id> du distributionManagement dans pom.xml
         SONAR_SERVER    = 'sonarqube'             // nom du serveur (Manage Jenkins > System)
-        TOMCAT_WEBAPPS  = '/opt/tomcat/webapps'   // TODO: dossier webapps de Tomcat sur VM4
-        TOMCAT_URL      = 'http://localhost:8080' // TODO: URL de Tomcat vu depuis VM4
-        JMETER_PLAN     = 'tests/jmeter/plan.jmx' // TODO: chemin du plan JMeter dans le repo
+        TOMCAT_WEBAPPS  = '/opt/tomcat/webapps'   // dossier webapps de Tomcat sur VM4
+        TOMCAT_URL      = 'http://localhost:8080' // URL de Tomcat vu depuis VM4
+        JMETER_BIN      = '/opt/jmeter/bin/jmeter'      // JMeter installé par install-jmeter.sh
+        JMETER_PLAN     = 'tests/jmeter/plan.jmx' // chemin du plan JMeter dans le repo
         MAIL_TO         = 'ouledhmedmohamed@gmail.com' // destinataire des notifications
     }
 
@@ -149,7 +149,9 @@ EOF
                 sh '''
                     mkdir -p target/jmeter
                     rm -rf target/jmeter/report target/jmeter/results.jtl
-                    jmeter -n -t "${JMETER_PLAN}" -l target/jmeter/results.jtl -e -o target/jmeter/report
+                    "${JMETER_BIN}" -n -t "${JMETER_PLAN}" \
+                        -Jhost=10.21.244.154 -Jport=8080 -Jpath=/ \
+                        -l target/jmeter/results.jtl -e -o target/jmeter/report
                 '''
                 archiveArtifacts artifacts: 'target/jmeter/**', allowEmptyArchive: true
             }
